@@ -138,7 +138,7 @@ app.get('/', async (req, res) => {
 app.use('/admin', admin);
 
 // Ajuste crucial para Railway
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 8080;
 
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 WinLab activo y escuchando en el puerto ${PORT}`);
