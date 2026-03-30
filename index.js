@@ -6,41 +6,23 @@ const app = express();
 const RAPIDAPI_KEY = process.env.RAPIDAPI_KEY; 
 global.MIS_FAVORITOS = []; 
 
-function traducirPrediccion(codigo) {
+function traducir(codigo) {
     const mapa = {
-        '1': 'Victoria Local',
-        '2': 'Victoria Visitante',
-        'X': 'Empate',
-        '1X': 'Local o Empate',
-        '2X': 'Visitante o Empate',
-        '12': 'Local o Visitante'
+        '1': 'Victoria Local', '2': 'Victoria Visitante', 'X': 'Empate',
+        '1X': 'Local o Empate', '2X': 'Visitante o Empate', '12': 'Local o Visitante'
     };
     return mapa[codigo] || codigo;
 }
 
-async function obtenerPartidosAPI() {
-    const hoy = new Date().toISOString().split('T')[0];
-    const options = {
-        method: 'GET',
-        url: 'https://football-prediction-api.p.rapidapi.com/api/v2/predictions',
-        params: { market: 'classic', iso_date: hoy, federation: 'UEFA' },
-        headers: { 
-            'x-rapidapi-key': RAPIDAPI_KEY, 
-            'x-rapidapi-host': 'football-prediction-api.p.rapidapi.com' 
-        }
-    };
-    try {
-        const res = await axios.request(options);
-        return res.data.data || [];
-    } catch (e) { return []; }
-}
-
 app.get('/', async (req, res) => {
     try {
-        const partidos = await obtenerPartidosAPI();
-        let filtrados = global.MIS_FAVORITOS.length > 0 
-            ? partidos.filter(p => global.MIS_FAVORITOS.includes(p.home_team)) 
-            : partidos;
+        const hoy = new Date().toISOString().split('T')[0];
+        const response = await axios.get('https://football-prediction-api.p.rapidapi.com/api/v2/predictions', {
+            params: { market: 'classic', iso_date: hoy, federation: 'UEFA' },
+            headers: { 'x-rapidapi-key': RAPIDAPI_KEY, 'x-rapidapi-host': 'football-prediction-api.p.rapidapi.com' }
+        });
+        const partidos = response.data.data || [];
+        let filtrados = global.MIS_FAVORITOS.length > 0 ? partidos.filter(p => global.MIS_FAVORITOS.includes(p.home_team)) : partidos;
 
         res.send(`
             <!DOCTYPE html>
@@ -48,62 +30,64 @@ app.get('/', async (req, res) => {
             <head>
                 <meta charset="UTF-8">
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <title>WinLab 🔬</title>
-                <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🔬</text></svg>">
+                <title>OjoDeGol 👁️ | IA de Pronósticos</title>
                 <style>
-                    body { font-family: sans-serif; background: #0f172a; color: white; margin: 0; padding: 15px; }
-                    .nav { text-align: center; padding: 20px 0; border-bottom: 2px solid #fbbf24; font-weight: 800; font-size: 24px; }
+                    body { font-family: 'Segoe UI', sans-serif; background: #0b0f19; color: white; margin: 0; padding: 15px; }
+                    .header { text-align: center; padding: 30px 0; color: #fbbf24; font-size: 28px; font-weight: 900; letter-spacing: 2px; }
                     .container { max-width: 500px; margin: 0 auto; }
-                    .card { background: white; color: #1e293b; border-radius: 15px; padding: 15px; margin-top: 20px; border-top: 5px solid #fbbf24; }
-                    .teams { display: flex; justify-content: space-between; font-weight: bold; margin: 10px 0; }
-                    .prediction-box { background: #f8fafc; padding: 10px; border-radius: 10px; text-align: center; border: 1px solid #e2e8f0; }
-                    .analysis-panel { background: #f1f5f9; padding: 10px; border-radius: 8px; font-size: 11px; margin-top: 10px; color: #475569; }
-                    .prob-grid { display: flex; justify-content: space-around; margin-top: 5px; font-weight: bold; color: #0f172a; }
-                    .low-priority { text-align: center; font-size: 10px; color: #94a3b8; margin-top: 10px; font-style: italic; border-top: 1px solid #f1f5f9; padding-top: 8px; }
+                    .card { background: #ffffff; color: #1e293b; border-radius: 20px; padding: 20px; margin-bottom: 25px; border-bottom: 8px solid #fbbf24; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+                    .league-tag { font-size: 10px; background: #f1f5f9; padding: 4px 10px; border-radius: 5px; color: #64748b; font-weight: bold; text-transform: uppercase; }
+                    .teams { display: flex; justify-content: space-between; align-items: center; margin: 15px 0; font-size: 1.2rem; font-weight: 800; }
+                    .vs { font-size: 0.7rem; color: #cbd5e1; background: #f8fafc; padding: 5px; border-radius: 50%; border: 1px solid #e2e8f0; }
+                    .prediction-main { background: #ecfdf5; border: 2px solid #10b981; border-radius: 12px; padding: 15px; text-align: center; margin-bottom: 15px; }
+                    .analysis-box { background: #f8fafc; border-radius: 12px; padding: 15px; font-size: 12px; color: #475569; border: 1px solid #e2e8f0; }
+                    .prob-bar { display: flex; justify-content: space-around; font-weight: 800; color: #0f172a; margin-top: 8px; font-size: 14px; }
                 </style>
             </head>
             <body>
-                <div class="nav">WINLAB 🔬</div>
+                <div class="header">👁️ OJODEGOL</div>
                 <div class="container">
                     ${filtrados.map(p => {
                         const probs = p.probabilities || {};
+                        const pGoles = Math.round((probs['over_25'] || 0) * 100);
                         const pL = Math.round((probs['1'] || 0) * 100);
                         const pE = Math.round((probs['X'] || 0) * 100);
                         const pV = Math.round((probs['2'] || 0) * 100);
-                        const tieneDatos = (pL + pE + pV) > 0;
+                        
+                        let lecturaGoles = pGoles > 60 ? "🔥 Alta tendencia a +2.5 goles" : "🛡️ Partido de pocos goles (Bajo 2.5)";
+                        if ((pL + pE + pV) === 0) lecturaGoles = "⚠️ Liga de baja prioridad: Sin métricas de goles.";
 
                         return `
                         <div class="card">
-                            <div style="font-size:10px; color:gray;">🏆 ${p.competition_name || 'Liga'}</div>
+                            <span class="league-tag">🏆 ${p.competition_name || 'Internacional'}</span>
                             <div class="teams">
-                                <span>${p.home_team}</span> <span>VS</span> <span>${p.away_team}</span>
+                                <span style="flex:1; text-align:right;">${p.home_team}</span>
+                                <span class="vs">VS</span>
+                                <span style="flex:1; text-align:left;">${p.away_team}</span>
                             </div>
-                            <div class="prediction-box">
-                                <small>PRONÓSTICO:</small><br>
-                                <b style="color:#10b981; font-size:1.2rem;">${traducirPrediccion(p.prediction)}</b>
+                            <div class="prediction-main">
+                                <small style="color:#059669; font-weight:bold; display:block; margin-bottom:5px;">RECOMENDACIÓN OJODEGOL:</small>
+                                <span style="color:#065f46; font-size:1.4rem; font-weight:900;">${traducir(p.prediction)}</span>
                             </div>
-                            
-                            ${tieneDatos ? `
-                                <div class="analysis-panel">
-                                    <b>📊 PROBABILIDADES IA:</b>
-                                    <div class="prob-grid">
-                                        <span>L: ${pL}%</span> <span>E: ${pE}%</span> <span>V: ${pV}%</span>
+                            <div class="analysis-box">
+                                <b>🎯 LECTURA DE GOLES:</b><br>
+                                <span>${lecturaGoles}</span>
+                                ${(pL + pE + pV) > 0 ? `
+                                    <div style="margin-top:10px; border-top:1px solid #e2e8f0; pt:10px;">
+                                        <b>📊 PROBABILIDADES:</b>
+                                        <div class="prob-bar">
+                                            <span>L: ${pL}%</span> <span>E: ${pE}%</span> <span>V: ${pV}%</span>
+                                        </div>
                                     </div>
-                                </div>
-                            ` : `
-                                <div class="low-priority">
-                                    ⚠️ Liga de baja prioridad: Sin métricas avanzadas disponibles.
-                                </div>
-                            `}
+                                ` : ''}
+                            </div>
                         </div>`;
                     }).join('')}
                 </div>
             </body>
             </html>
         `);
-    } catch (error) {
-        res.status(500).send("Error interno.");
-    }
+    } catch (e) { res.status(500).send("Error"); }
 });
 
 app.use('/admin', admin);
