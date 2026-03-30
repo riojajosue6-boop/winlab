@@ -133,6 +133,13 @@ app.get('/', async (req, res) => {
     `);
 });
 
+// --- ESTA ES LA ÚLTIMA PARTE DE TU INDEX.JS ---
+
 app.use('/admin', admin);
+
+// Ajuste crucial para Railway
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log("WinLab con Análisis Técnico Online"));
+
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`🚀 WinLab activo y escuchando en el puerto ${PORT}`);
+});
