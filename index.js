@@ -30,56 +30,85 @@ app.get('/', async (req, res) => {
             <head>
                 <meta charset="UTF-8">
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                <title>OjoDeGol 👁️ | IA de Pronósticos</title>
+                <title>OjoDeGol 🕵️‍♂️⚽ | Análisis IA</title>
                 <style>
-                    body { font-family: 'Segoe UI', sans-serif; background: #0b0f19; color: white; margin: 0; padding: 15px; }
-                    .header { text-align: center; padding: 30px 0; color: #fbbf24; font-size: 28px; font-weight: 900; letter-spacing: 2px; }
+                    body { font-family: 'Segoe UI', sans-serif; background: #0f172a; color: white; margin: 0; padding: 15px; }
+                    .header { text-align: center; padding: 25px 0; color: #fbbf24; font-size: 26px; font-weight: 900; }
                     .container { max-width: 500px; margin: 0 auto; }
-                    .card { background: #ffffff; color: #1e293b; border-radius: 20px; padding: 20px; margin-bottom: 25px; border-bottom: 8px solid #fbbf24; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
-                    .league-tag { font-size: 10px; background: #f1f5f9; padding: 4px 10px; border-radius: 5px; color: #64748b; font-weight: bold; text-transform: uppercase; }
-                    .teams { display: flex; justify-content: space-between; align-items: center; margin: 15px 0; font-size: 1.2rem; font-weight: 800; }
-                    .vs { font-size: 0.7rem; color: #cbd5e1; background: #f8fafc; padding: 5px; border-radius: 50%; border: 1px solid #e2e8f0; }
-                    .prediction-main { background: #ecfdf5; border: 2px solid #10b981; border-radius: 12px; padding: 15px; text-align: center; margin-bottom: 15px; }
-                    .analysis-box { background: #f8fafc; border-radius: 12px; padding: 15px; font-size: 12px; color: #475569; border: 1px solid #e2e8f0; }
-                    .prob-bar { display: flex; justify-content: space-around; font-weight: 800; color: #0f172a; margin-top: 8px; font-size: 14px; }
+                    .card { background: #ffffff; color: #1e293b; border-radius: 24px; padding: 20px; margin-bottom: 25px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); position: relative; overflow: hidden; }
+                    .league-badge { font-size: 10px; background: #f1f5f9; padding: 5px 12px; border-radius: 20px; color: #64748b; font-weight: bold; }
+                    
+                    /* ESTILO EQUIPOS Y LOGOS */
+                    .match-header { display: flex; justify-content: space-around; align-items: center; margin: 20px 0; text-align: center; }
+                    .team { flex: 1; font-weight: 800; font-size: 14px; }
+                    .team img { width: 45px; height: 45px; display: block; margin: 0 auto 8px; object-fit: contain; }
+                    .vs-circle { background: #f8fafc; border: 1px solid #e2e8f0; width: 30px; height: 30px; line-height: 30px; border-radius: 50%; font-size: 10px; color: #cbd5e1; }
+
+                    /* SEMÁFORO DE CONFIANZA */
+                    .confidence { display: inline-block; padding: 4px 10px; border-radius: 8px; font-size: 10px; font-weight: bold; margin-bottom: 10px; text-transform: uppercase; }
+                    .conf-high { background: #dcfce7; color: #166534; } /* Verde */
+                    .conf-med { background: #fef9c3; color: #854d0e; }  /* Amarillo */
+
+                    .prediction-box { background: #0f172a; color: #fbbf24; border-radius: 15px; padding: 15px; text-align: center; margin-bottom: 15px; }
+                    
+                    /* PANEL DE HORARIOS */
+                    .time-panel { background: #f8fafc; border-radius: 12px; padding: 12px; font-size: 11px; color: #64748b; border: 1px solid #e2e8f0; }
+                    .main-time { font-size: 14px; color: #1e293b; font-weight: 800; display: block; margin-bottom: 5px; border-bottom: 1px solid #e2e8f0; padding-bottom: 5px; }
+                    .other-times { display: flex; justify-content: space-between; opacity: 0.8; }
                 </style>
             </head>
             <body>
-                <div class="header">👁️ OJODEGOL</div>
+                <div class="header">🕵️‍♂️ OJODEGOL ⚽</div>
                 <div class="container">
                     ${filtrados.map(p => {
                         const probs = p.probabilities || {};
-                        const pGoles = Math.round((probs['over_25'] || 0) * 100);
-                        const pL = Math.round((probs['1'] || 0) * 100);
-                        const pE = Math.round((probs['X'] || 0) * 100);
-                        const pV = Math.round((probs['2'] || 0) * 100);
-                        
-                        let lecturaGoles = pGoles > 60 ? "🔥 Alta tendencia a +2.5 goles" : "🛡️ Partido de pocos goles (Bajo 2.5)";
-                        if ((pL + pE + pV) === 0) lecturaGoles = "⚠️ Liga de baja prioridad: Sin métricas de goles.";
+                        const pWin = Math.max(probs['1'] || 0, probs['2'] || 0, probs['X'] || 0) * 100;
+                        const confClass = pWin > 65 ? 'conf-high' : 'conf-med';
+                        const confText = pWin > 65 ? '🔥 ALTA CONFIANZA' : '⚖️ ANÁLISIS PROBABLE';
+
+                        // LOGICA DE HORARIOS
+                        const fechaBase = new Date(p.start_date);
+                        const hGmt = fechaBase.getUTCHours();
+                        const mins = fechaBase.getUTCMinutes().toString().padStart(2, '0');
+
+                        const hBol = (hGmt - 4 + 24) % 24;
+                        const hMex = (hGmt - 6 + 24) % 24;
+                        const hEsp = (hGmt + 1 + 24) % 24;
+
+                        // URL de Logo (Usa un servicio de placeholder si no encuentra)
+                        const logoHome = `https://api.dicebear.com/7.x/initials/svg?seed=${p.home_team}&backgroundColor=b6e3f4`;
+                        const logoAway = `https://api.dicebear.com/7.x/initials/svg?seed=${p.away_team}&backgroundColor=ffdfbf`;
 
                         return `
                         <div class="card">
-                            <span class="league-tag">🏆 ${p.competition_name || 'Internacional'}</span>
-                            <div class="teams">
-                                <span style="flex:1; text-align:right;">${p.home_team}</span>
-                                <span class="vs">VS</span>
-                                <span style="flex:1; text-align:left;">${p.away_team}</span>
+                            <div style="display:flex; justify-content:space-between; align-items:center;">
+                                <span class="league-badge">🏆 ${p.competition_name}</span>
+                                <span class="confidence ${confClass}">${confText}</span>
                             </div>
-                            <div class="prediction-main">
-                                <small style="color:#059669; font-weight:bold; display:block; margin-bottom:5px;">RECOMENDACIÓN OJODEGOL:</small>
-                                <span style="color:#065f46; font-size:1.4rem; font-weight:900;">${traducir(p.prediction)}</span>
+
+                            <div class="match-header">
+                                <div class="team">
+                                    <img src="${logoHome}" alt="L">
+                                    ${p.home_team}
+                                </div>
+                                <div class="vs-circle">VS</div>
+                                <div class="team">
+                                    <img src="${logoAway}" alt="V">
+                                    ${p.away_team}
+                                </div>
                             </div>
-                            <div class="analysis-box">
-                                <b>🎯 LECTURA DE GOLES:</b><br>
-                                <span>${lecturaGoles}</span>
-                                ${(pL + pE + pV) > 0 ? `
-                                    <div style="margin-top:10px; border-top:1px solid #e2e8f0; pt:10px;">
-                                        <b>📊 PROBABILIDADES:</b>
-                                        <div class="prob-bar">
-                                            <span>L: ${pL}%</span> <span>E: ${pE}%</span> <span>V: ${pV}%</span>
-                                        </div>
-                                    </div>
-                                ` : ''}
+
+                            <div class="prediction-box">
+                                <small style="text-transform:uppercase; font-size:9px; letter-spacing:1px; color:#94a3b8;">Sugerencia de la IA:</small><br>
+                                <span style="font-size:1.4rem; font-weight:900;">${traducir(p.prediction)}</span>
+                            </div>
+
+                            <div class="time-panel">
+                                <span class="main-time">🇧🇴 Bolivia: ${hBol}:${mins}</span>
+                                <div class="other-times">
+                                    <span>🇲🇽 México: ${hMex}:${mins}</span>
+                                    <span>🇪🇸 España: ${hEsp}:${mins}</span>
+                                </div>
                             </div>
                         </div>`;
                     }).join('')}
@@ -87,7 +116,7 @@ app.get('/', async (req, res) => {
             </body>
             </html>
         `);
-    } catch (e) { res.status(500).send("Error"); }
+    } catch (e) { res.status(500).send("Error de conexión"); }
 });
 
 app.use('/admin', admin);
