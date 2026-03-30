@@ -32,9 +32,7 @@ async function obtenerPartidosAPI() {
     try {
         const res = await axios.request(options);
         return res.data.data || [];
-    } catch (e) { 
-        return []; 
-    }
+    } catch (e) { return []; }
 }
 
 app.get('/', async (req, res) => {
@@ -61,17 +59,18 @@ app.get('/', async (req, res) => {
                     .prediction-box { background: #f8fafc; padding: 10px; border-radius: 10px; text-align: center; border: 1px solid #e2e8f0; }
                     .analysis-panel { background: #f1f5f9; padding: 10px; border-radius: 8px; font-size: 11px; margin-top: 10px; color: #475569; }
                     .prob-grid { display: flex; justify-content: space-around; margin-top: 5px; font-weight: bold; color: #0f172a; }
+                    .low-priority { text-align: center; font-size: 10px; color: #94a3b8; margin-top: 10px; font-style: italic; border-top: 1px solid #f1f5f9; padding-top: 8px; }
                 </style>
             </head>
             <body>
                 <div class="nav">WINLAB 🔬</div>
                 <div class="container">
                     ${filtrados.map(p => {
-                        // PROTECCIÓN: Si probabilities no existe, ponemos 0
                         const probs = p.probabilities || {};
                         const pL = Math.round((probs['1'] || 0) * 100);
                         const pE = Math.round((probs['X'] || 0) * 100);
                         const pV = Math.round((probs['2'] || 0) * 100);
+                        const tieneDatos = (pL + pE + pV) > 0;
 
                         return `
                         <div class="card">
@@ -83,12 +82,19 @@ app.get('/', async (req, res) => {
                                 <small>PRONÓSTICO:</small><br>
                                 <b style="color:#10b981; font-size:1.2rem;">${traducirPrediccion(p.prediction)}</b>
                             </div>
-                            <div class="analysis-panel">
-                                <b>📊 PROBABILIDADES IA:</b>
-                                <div class="prob-grid">
-                                    <span>L: ${pL}%</span> <span>E: ${pE}%</span> <span>V: ${pV}%</span>
+                            
+                            ${tieneDatos ? `
+                                <div class="analysis-panel">
+                                    <b>📊 PROBABILIDADES IA:</b>
+                                    <div class="prob-grid">
+                                        <span>L: ${pL}%</span> <span>E: ${pE}%</span> <span>V: ${pV}%</span>
+                                    </div>
                                 </div>
-                            </div>
+                            ` : `
+                                <div class="low-priority">
+                                    ⚠️ Liga de baja prioridad: Sin métricas avanzadas disponibles.
+                                </div>
+                            `}
                         </div>`;
                     }).join('')}
                 </div>
@@ -96,14 +102,10 @@ app.get('/', async (req, res) => {
             </html>
         `);
     } catch (error) {
-        res.status(500).send("Error interno del servidor. Revisa los logs.");
+        res.status(500).send("Error interno.");
     }
 });
 
 app.use('/admin', admin);
-
-// CONFIGURACIÓN MAESTRA DE PUERTO PARA RAILWAY
 const PORT = process.env.PORT || 8080;
-app.listen(PORT, '0.0.0.0', () => {
-    console.log("Servidor WinLab funcionando en puerto: " + PORT);
-});
+app.listen(PORT, '0.0.0.0');
