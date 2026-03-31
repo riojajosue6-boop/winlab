@@ -32,7 +32,7 @@ async function obtenerDatosAPI() {
             params: { 
                 market: 'classic', 
                 iso_date: hoy,
-                federation: 'CONMEBOL,UEFA,FIFA,CONCACAF,AFC' // BUSCA EN TODO EL MUNDO
+                federation: 'CONMEBOL,AFC,UEFA' //busca los mas importantes
             },
             headers: { 'x-rapidapi-key': RAPIDAPI_KEY, 'x-rapidapi-host': 'football-prediction-api.p.rapidapi.com' }
         });
