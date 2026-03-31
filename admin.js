@@ -15,7 +15,7 @@ router.get('/', async (req, res) => {
             params: { 
                 market: 'classic', 
                 iso_date: hoy,
-                federation: 'CONMEBOL,UEFA,FIFA,CONCACAF,AFC'
+                federation: 'CONMEBOL,AFC,UEFA'
             },
             headers: { 
                 'x-rapidapi-key': process.env.RAPIDAPI_KEY, 
