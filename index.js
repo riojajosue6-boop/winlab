@@ -5,10 +5,10 @@ const app = express();
 
 const RAPIDAPI_KEY = process.env.RAPIDAPI_KEY;
 
-// CACHE PARA AHORRAR CRÉDITOS
+// SISTEMA DE CACHE (Ahorro de créditos)
 let cachePartidos = null;
 let ultimaActualizacion = 0;
-const TIEMPO_CACHE = 1000 * 60 * 120; // 2 horas en milisegundos
+const TIEMPO_CACHE = 1000 * 60 * 120; // 2 horas
 
 global.MIS_FAVORITOS = []; 
 
@@ -29,7 +29,11 @@ async function obtenerDatosAPI() {
     try {
         const hoy = new Date().toISOString().split('T')[0];
         const res = await axios.get('https://football-prediction-api.p.rapidapi.com/api/v2/predictions', {
-            params: { market: 'classic', iso_date: hoy },
+            params: { 
+                market: 'classic', 
+                iso_date: hoy,
+                federation: 'CONMEBOL,UEFA,FIFA,CONCACAF,AFC' // BUSCA EN TODO EL MUNDO
+            },
             headers: { 'x-rapidapi-key': RAPIDAPI_KEY, 'x-rapidapi-host': 'football-prediction-api.p.rapidapi.com' }
         });
         cachePartidos = res.data.data || [];
@@ -42,13 +46,10 @@ async function obtenerDatosAPI() {
 
 app.get('/', async (req, res) => {
     const partidos = await obtenerDatosAPI();
-    
-    // Filtrar solo los que elegiste en el Admin
     let filtrados = global.MIS_FAVORITOS.length > 0 
         ? partidos.filter(p => global.MIS_FAVORITOS.includes(p.home_team)) 
         : partidos;
 
-    // Agrupar por Ligas
     const ligas = {};
     filtrados.forEach(p => {
         if (!ligas[p.competition_name]) ligas[p.competition_name] = [];
@@ -61,32 +62,32 @@ app.get('/', async (req, res) => {
         <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>OjoDeGol 🕵️‍♂️⚽</title>
+            <title>OjoDeGol 🕵️‍♂️⚽ | IA de Pronósticos</title>
             <style>
                 body { font-family: 'Segoe UI', sans-serif; background: #0f172a; color: white; margin: 0; padding: 15px; }
-                .header { text-align: center; padding: 20px 0; color: #fbbf24; font-size: 24px; font-weight: 900; }
+                .header { text-align: center; padding: 25px 0; color: #fbbf24; font-size: 26px; font-weight: 900; }
                 .container { max-width: 500px; margin: 0 auto; }
-                
-                /* ESTILO ACORDEÓN */
-                .liga-section { margin-bottom: 10px; border-radius: 12px; overflow: hidden; background: #1e293b; }
-                .liga-header { background: #334155; padding: 15px; cursor: pointer; font-weight: bold; display: flex; justify-content: space-between; align-items: center; border-left: 4px solid #fbbf24; }
-                .liga-content { display: none; padding: 10px; background: #0f172a; }
-                
-                .card { background: white; color: #1e293b; border-radius: 15px; padding: 15px; margin-bottom: 15px; }
-                .teams { display: flex; justify-content: space-around; align-items: center; text-align: center; font-weight: 800; margin: 10px 0; }
-                .team-img { width: 40px; height: 40px; display: block; margin-bottom: 5px; }
-                .pred-box { background: #ecfdf5; border: 1px solid #10b981; padding: 10px; border-radius: 10px; text-align: center; margin: 10px 0; }
-                .time-box { font-size: 10px; color: #64748b; text-align: center; border-top: 1px solid #f1f5f9; padding-top: 8px; }
+                .liga-section { margin-bottom: 12px; border-radius: 15px; overflow: hidden; background: #1e293b; border: 1px solid #334155; }
+                .liga-header { background: #1e293b; padding: 15px; cursor: pointer; font-weight: bold; display: flex; justify-content: space-between; align-items: center; border-left: 5px solid #fbbf24; }
+                .liga-content { display: none; padding: 12px; background: #0f172a; border-top: 1px solid #334155; }
+                .card { background: white; color: #1e293b; border-radius: 18px; padding: 15px; margin-bottom: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
+                .match-header { display: flex; justify-content: space-around; align-items: center; margin: 15px 0; text-align: center; }
+                .team { flex: 1; font-weight: 800; font-size: 13px; }
+                .team img { width: 40px; height: 40px; display: block; margin: 0 auto 5px; }
+                .vs { font-size: 10px; color: #cbd5e1; font-weight: normal; }
+                .pred-box { background: #0f172a; color: #fbbf24; padding: 12px; border-radius: 12px; text-align: center; margin: 10px 0; }
+                .time-panel { background: #f8fafc; border-radius: 10px; padding: 10px; font-size: 11px; color: #64748b; border: 1px solid #e2e8f0; }
+                .main-time { font-size: 13px; color: #1e293b; font-weight: 800; display: block; margin-bottom: 4px; }
             </style>
         </head>
         <body>
             <div class="header">🕵️‍♂️ OJODEGOL ⚽</div>
             <div class="container">
-                ${Object.keys(ligas).map(nombreLiga => `
+                ${Object.keys(ligas).length > 0 ? Object.keys(ligas).map(nombreLiga => `
                     <div class="liga-section">
-                        <div class="liga-header" onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display === 'block' ? 'none' : 'block'">
+                        <div class="liga-header" onclick="toggleLiga(this)">
                             <span>🏆 ${nombreLiga}</span>
-                            <span>▼</span>
+                            <span class="icon">▼</span>
                         </div>
                         <div class="liga-content">
                             ${ligas[nombreLiga].map(p => {
@@ -99,24 +100,41 @@ app.get('/', async (req, res) => {
 
                                 return `
                                 <div class="card">
-                                    <div class="teams">
-                                        <div><img class="team-img" src="https://api.dicebear.com/7.x/initials/svg?seed=${p.home_team}">${p.home_team}</div>
-                                        <div style="color:#cbd5e1; font-size:12px;">VS</div>
-                                        <div><img class="team-img" src="https://api.dicebear.com/7.x/initials/svg?seed=${p.away_team}">${p.away_team}</div>
+                                    <div class="match-header">
+                                        <div class="team">
+                                            <img src="https://api.dicebear.com/7.x/initials/svg?seed=${p.home_team}&backgroundColor=b6e3f4">${p.home_team}
+                                        </div>
+                                        <div class="vs">VS</div>
+                                        <div class="team">
+                                            <img src="https://api.dicebear.com/7.x/initials/svg?seed=${p.away_team}&backgroundColor=ffdfbf">${p.away_team}
+                                        </div>
                                     </div>
                                     <div class="pred-box">
-                                        <small>SUGERENCIA:</small><br>
-                                        <b style="color:#065f46;">${traducir(p.prediction)}</b>
+                                        <small style="font-size:9px; opacity:0.7;">RECOMENDACIÓN IA:</small><br>
+                                        <span style="font-size:1.2rem; font-weight:900;">${traducir(p.prediction)}</span>
                                     </div>
-                                    <div class="time-box">
-                                        🇧🇴 ${hBol}:${m} | 🇲🇽 ${hMex}:${m} | 🇪🇸 ${hEsp}:${m}
+                                    <div class="time-panel">
+                                        <span class="main-time">🇧🇴 Bolivia: ${hBol}:${m}</span>
+                                        <div style="display:flex; justify-content:space-between; opacity:0.8;">
+                                            <span>🇲🇽 MX: ${hMex}:${m}</span>
+                                            <span>🇪🇸 ES: ${hEsp}:${m}</span>
+                                        </div>
                                     </div>
                                 </div>`;
                             }).join('')}
                         </div>
                     </div>
-                `).join('')}
+                `).join('') : "<p style='text-align:center;'>Buscando partidos en el radar...</p>"}
             </div>
+            <script>
+                function toggleLiga(header) {
+                    const content = header.nextElementSibling;
+                    const icon = header.querySelector('.icon');
+                    const isOpen = content.style.display === 'block';
+                    content.style.display = isOpen ? 'none' : 'block';
+                    icon.innerText = isOpen ? '▼' : '▲';
+                }
+            </script>
         </body>
         </html>
     `);
